@@ -1,0 +1,590 @@
+<!doctype html>
+<html>    
+<head>    
+    <title>Capture Paper</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+	<script>
+		"use strict"
+		
+		/**A class that defines the Hesse Normal Form of a line
+		*vector equation of a line (r-a).n = 0
+		*where n is the unit normal to the line
+		*vector equation of a line r.n = a.n
+		*vector equation of a line r.n = d,
+		*where d=a.n
+		*      r=xi+yj
+		*      n=cos(theat)i + sin(theta)j
+		*then x cos(theta) + y sin(theta) = d
+		*two parameters define the line
+		*d is the displacement from O to line
+		*theta such that the unit normal to the line is cos(theat)i + sin(theta)j;
+		*/
+		class HesseNormalForm
+		{
+			constructor(d,theta)
+			{
+				
+				this.d = d;
+				this.theta = theta;
+				//console.log("New line d="+this.d+",theta="+theta);
+			}
+			
+			/**@return true if (x,y) lies on line
+			*/
+			onLine(x,y)
+			{
+				let displacement = x*Math.cos(this.theta)+y*Math.sin(this.theta);
+				//console.log("dis="+displacement+",d="+this.d);
+				return (displacement-this.d)<1 && (displacement-this.d)>-1;
+			}
+			
+			/**@return the point of intersection between this line and another line
+			*@param line the other line
+			*/
+			intersect(line)
+			{
+				/**
+				x*c1 + y*s1 = d1 ---(1)
+				x*c2 + y*s2 = d2 ---(2)
+				
+				(1)*c2: x*c1*c2 + y*s1*c2 = d1*c2 ---(3)
+				(2)*c1: x*c2*c1 + y*s2*c1 = d2*c1 ---(4)
+				
+				(3)-(4): y*(s1*c2-s2*c1) = d1*c2-d2*c1
+				                       y = (d1*c2-d2*c1)/(s1*c2-s2*c1);
+				
+				
+				(1)*s2: x*c1*s2 + y*s1*s2 = d1*s2 ---(5)
+				(2)*s1: x*c2*s1 + y*s2*s1 = d2*s1 ---(6)
+				
+				(5)-(6): x*(c1*s2-c2*s1) = d1*s2-d2*s1
+				                       x = (d1*s2-d2*s1)/(c1*s2-c2*s1)
+				
+				*/
+				let c1 = Math.cos(this.theta);
+				let s1 = Math.sin(this.theta);
+				let d1 = this.d;
+				let c2 = Math.cos(line.theta);
+				let s2 = Math.sin(line.theta);
+				let d2 = line.d;
+				
+				return new Point((d1*s2-d2*s1)/(c1*s2-c2*s1),(d1*c2-d2*c1)/(s1*c2-s2*c1));
+			}
+		}
+		
+		/**A class that define the RGB of a pixel
+		*/
+		class RGB
+		{
+			constructor(r,g,b)
+			{
+				this.red = r;
+				this.green = g;
+				this.blue = b;
+			}
+			
+			/**@return the gray value of the pixel
+			*/
+			toGray()
+			{
+				return (this.red+this.green+this.blue)/3;
+			}
+		}
+		
+		/**A class that defines a point and some operations
+		*/
+		class Point
+		{
+			constructor(x,y)
+			{
+				this.x = x;
+				this.y = y;
+			}
+			
+			/**@return the distance between this point and the point (x,y)
+			*/
+			distance(x,y)
+			{
+				return Math.sqrt((this.x-x)*(this.x-x)+(this.y-y)*(this.y-y))
+			}
+			
+			translate(dx,dy)
+			{
+				return new Point(this.x+dx,this.y+dy);
+			}
+			
+			scale(factor)
+			{
+				return new Point(this.x*factor,this.y*factor);
+			}
+		}
+		
+		function getPixel(imgData,x,y)
+		{
+			let data = imgData.data;
+			let pos = y*imgData.width*4+x*4;
+			return new RGB(data[pos],data[pos+1],data[pos+2]);
+		}
+		
+		function setPixel(imgData,x,y,r,g,b)
+		{
+			let data = imgData.data;
+			let pos = y*imgData.width*4+x*4;
+			data[pos] = r;
+			data[pos+1] = g;
+			data[pos+2] = b;
+		}
+		
+		/**linear interpolate between p1 and p2
+		*@param p1 a point
+		*@param p2 another point
+		*@param percent the percentage of length p1 and P2 from p1
+		*return the point on the line
+		*/
+		function interpolate(p1,p2,percent)
+		{
+			let x = p1.x + percent*(p2.x-p1.x);
+			let y = p1.y + percent*(p2.y-p1.y);
+			return new Point(x,y);
+		}
+		
+		/**@return the intersection between line P1P2 and line P3P4
+		*/
+		function intersection(p1,p2,p3,p4)
+		{
+			//the parametric equation of a line (x1,y1) and (x2,y2)
+			// x = x1 + (x2-x1)t
+			// y = y1 + (y2-y1)t
+			
+			//the parametric equation of a line (x3,y3) and (x4,y4)
+			// x = x3 + (x4-x3)u
+			// y = y3 + (y4-y3)u
+			
+			//finding the intersection
+			// x1 + (x2-x1)t = x3 + (x4-x3)u
+			// (x2-x1)t - (x4-x3)u = x3-x1
+			//
+			// y1 + (y2-y1)t = y3 + (y4-y3)u
+			// (y2-y1)t - (y4-y3)u = y3-y1
+			//
+			// In matrix
+			// [ x2-x1 , x3-x4 ] [t] = [x3-x1]
+			// [ y2-y1 , y3-y4 ] [u]   [y3-y1]
+			// [ a, b ][t] = [p]
+			// [ c, d ][u]   [q]
+			//then
+			// t = (dp-bq)/(ad-bc)
+			// u = (-cp+aq)/(ad-bc
+			
+			let a = p2.x-p1.x;
+			let b = p3.x-p4.x;
+			let c = p2.y-p1.y;
+			let d = p3.y-p4.y;
+			let p = p3.x-p1.x;
+			let q = p3.y-p1.y;
+			
+			let t = (d*p-b*q)/(a*d-b*c);
+			let x = p1.x + t*(p2.x-p1.x);
+			let y = p1.y + t*(p2.y-p1.y);
+			return new Point(Math.ceil(x),Math.ceil(y));
+		}
+		
+		//global variables
+		const borderWidth = 10;
+		let corners = new Array();//tl,tr,bl,br
+		for(let i=0;i<4;i++)
+		{
+			corners.push(new Point(0,0));
+		}
+		let selectedPoint = null;
+		let img = new Image();
+		let displayImgWidth = 0;
+		let displayImgHeight = 0;
+		let canvas = null;
+		let ctx = null;
+		let imgData = null;
+		
+		
+		window.onload = function()
+		{
+			console.log("Loaded");
+			canvas = document.getElementById("inputCanvas");
+			ctx = canvas.getContext("2d");
+			
+			canvas.addEventListener('pointerdown', function(event)
+			{
+				for(let i=0;i<4;i++)
+				{
+					if (corners[i].distance(event.offsetX,event.offsetY)<borderWidth)
+					{
+						selectedPoint = corners[i];
+					}
+				}
+			});
+			
+			canvas.addEventListener('pointermove', function(event)
+			{
+				if (selectedPoint!=null)
+				{
+					//console.log("mouse move to "+event.offsetX+","+event.offsetY);
+					selectedPoint.x = event.offsetX;
+					selectedPoint.y = event.offsetY;
+					
+					if (selectedPoint.x<borderWidth)
+					{
+						selectedPoint.x = borderWidth;
+					}
+					else if (selectedPoint.x>(canvas.width-borderWidth))
+					{
+						selectedPoint.x = canvas.width-borderWidth;
+					}
+					
+					if (selectedPoint.y<borderWidth)
+					{
+						selectedPoint.y = borderWidth;
+					}
+					else if (selectedPoint.y>(canvas.height-borderWidth))
+					{
+						selectedPoint.y = canvas.height-borderWidth;
+					}
+					
+					redraw(true);
+				}
+			});
+			
+			canvas.addEventListener('pointerup', function(event)
+			{
+				selectedPoint=null;
+			});
+			
+			canvas.addEventListener('pointerout', function(event)
+			{
+				selectedPoint=null;
+			});
+		}
+		
+		function redraw(drawSelection)
+		{
+			//draw image
+			ctx.drawImage(img, borderWidth, borderWidth, displayImgWidth, displayImgHeight);
+			
+			//draw border
+			ctx.beginPath();
+			ctx.rect(0, 0, borderWidth, canvas.height);
+			ctx.rect(0, 0, canvas.width,borderWidth);
+			ctx.rect(canvas.width-borderWidth, 0,borderWidth,canvas.height);
+			ctx.rect(0, canvas.height-borderWidth,canvas.width,borderWidth);
+			ctx.fillStyle = "white";
+			ctx.fill();
+			
+			if (drawSelection)
+			{
+				//draw the 4 circles
+				for(let i=0;i<4;i++)
+				{
+					ctx.beginPath();
+					ctx.arc(corners[i].x, corners[i].y, borderWidth, 0, 2 * Math.PI);
+					ctx.fillStyle = "rgba(255, 255, 0, 0.5)";
+					ctx.fill();
+				}
+			
+				//draw the cropped border
+				ctx.beginPath();
+				ctx.moveTo(corners[0].x, corners[0].y);
+				ctx.lineTo(corners[1].x, corners[1].y);
+				ctx.lineTo(corners[3].x, corners[3].y);
+				ctx.lineTo(corners[2].x, corners[2].y);
+				ctx.closePath();
+				ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
+				ctx.lineWidth = 2;
+				ctx.stroke();
+			}
+		}
+		
+		function inputFileChanged()
+		{
+			var file = document.getElementById("fileInput").files[0];
+			
+			var URL = window.webkitURL || window.URL;
+			var url = URL.createObjectURL(file);
+			
+			img.src = url;
+			img.onload = function()
+			{
+				console.log("width "+img.width+", heigh "+img.height);
+				
+				
+				//load the image into the hidden canvas
+				{
+					let hiddenCanvas = document.getElementById("hiddenCanvas");
+					let hiddentCtx = hiddenCanvas.getContext("2d");
+					hiddenCanvas.width = img.width;
+					hiddenCanvas.height = img.height;
+					//draw image
+					hiddentCtx.drawImage(img, 0, 0, img.width, img.height);
+					imgData = hiddentCtx.getImageData(0, 0, img.width, img.height);
+				}
+				
+				const w = 0.9*document.documentElement.clientWidth;
+				const h = 0.9*document.documentElement.clientHeight;
+				
+				canvas.width = w;
+				displayImgWidth = w-borderWidth*2;
+				displayImgHeight = displayImgWidth*img.height/img.width;
+				canvas.height = displayImgHeight+borderWidth*2;
+				
+				corners[0].x = borderWidth;
+				corners[0].y = borderWidth;
+				corners[1].x = canvas.width-borderWidth;
+				corners[1].y = borderWidth;
+				
+				corners[2].x = borderWidth;				
+				corners[2].y = canvas.height-borderWidth;
+				corners[3].x = canvas.width-borderWidth;
+				corners[3].y = canvas.height-borderWidth;
+				redraw(true);
+				document.getElementById("extractButton").disabled = false;
+				document.getElementById("detectButton").disabled = false;
+			}
+			
+			
+		}
+		
+		function extract()
+		{
+			console.log("Extract");
+			let factor = img.width/displayImgWidth;
+			let tl = corners[0].translate(-borderWidth,-borderWidth).scale(factor);
+			let tr = corners[1].translate(-borderWidth,-borderWidth).scale(factor);
+			let bl = corners[2].translate(-borderWidth,-borderWidth).scale(factor);
+			let br = corners[3].translate(-borderWidth,-borderWidth).scale(factor);
+			
+			
+			let top = tl.distance(tr.x,tr.y);
+			let bottom = bl.distance(br.x,br .y);
+			let left = tl.distance(bl.x,bl.y);
+			let right = tr.distance(br.y,bl.y);
+			
+			let outWidth = Math.ceil(Math.min(top,bottom));
+			let outHeight = Math.ceil(Math.min(left,right));
+			
+			let outCanvas = document.getElementById("outputCanvas");
+			outCanvas.width = outWidth;
+			outCanvas.height = outHeight;			
+			let out = outCanvas.getContext("2d");
+			
+			//clear the canvas, must fill with some color selse getImageData will not work
+			out.beginPath();
+			out.rect(0, 0, outCanvas.width, outCanvas.height);
+			out.fillStyle = "white";
+			out.fill();
+			
+			let outImgData = out.getImageData(0, 0, outCanvas.width, outCanvas.height);
+			redraw(false);
+			
+			for(let y=0;y<outCanvas.height;y++)
+			{
+				for(let x=0;x<outCanvas.width;x++)
+				{
+					let topPoint = interpolate(tl,tr,x/outCanvas.width);//the point on the top
+					let bottomPoint = interpolate(bl,br,x/outCanvas.width);//the point on the bottom
+					let leftPoint = interpolate(tl,bl,y/outCanvas.height);//the point on the left
+					let rightPoint = interpolate(tr,br,y/outCanvas.height);//the point on the right
+					
+					let sourcePoint = intersection(topPoint,bottomPoint,leftPoint,rightPoint);
+					let sourcePixel = getPixel(imgData,sourcePoint.x,sourcePoint.y)
+					setPixel(outImgData,x,y,sourcePixel.red,sourcePixel.green,sourcePixel.blue);
+				}
+			}
+			
+			out.putImageData(outImgData, 0, 0);
+			redraw(true);
+			document.getElementById("saveButton").disabled = false;
+		}
+		
+		function save()
+		{
+			let outCanvas = document.getElementById("outputCanvas");
+			const link = document.createElement('a');
+			link.download = 'download.png';
+			link.href = outCanvas.toDataURL("image/png");
+			link.click();
+			link.delete;
+		}
+		
+		function findBestFitLine(points)
+		{
+			let bestFitLine = null;
+			let bestFit = 0;
+			for(let i=0;i<points.length;i++)
+			{
+				for(let angle=-180;angle<180;angle++)
+				{
+					let fitted = 0;
+					let theta = angle*Math.PI/180;
+					let d = points[i].x*Math.cos(theta)+points[i].y*Math.sin(theta);
+					let line = new HesseNormalForm(d,theta);
+					for(let j=0;j<points.length;j++)
+					{
+						if (line.onLine(points[j].x,points[j].y))
+						{
+							fitted++;
+						}
+					}
+					if (fitted>bestFit)
+					{
+						bestFit = fitted;
+						bestFitLine = line;
+					}
+				}
+			}
+			return bestFitLine;
+		}
+		
+		function detect()
+		{
+			const threshold = parseInt(document.getElementById("threshold").value);
+			const sampleInterval = parseInt(document.getElementById("sampleInterval").value);
+			console.log("Sample interval="+sampleInterval);
+			console.log("Threshold="+threshold);
+			//alert("Detect");
+			//detect the left line
+			let points = new Array();
+			for(let y=0;y<img.height;y=y+sampleInterval)
+			{
+				let previousPixel = getPixel(imgData,0,y);
+				let found = false;
+				for(let x=1;x<img.width&&!found;x++)
+				{
+					let currentPixel = getPixel(imgData,x,y);
+					let diff = previousPixel.toGray()-currentPixel.toGray();
+					if ((diff<-threshold)||(diff>threshold))
+					{
+						points.push(new Point(x,y));
+						found = true;
+					}
+					previousPixel = currentPixel;
+				}
+			}
+			let leftLine = findBestFitLine(points);
+			
+			points.length = 0;//clear array
+			//detect the right line
+			for(let y=0;y<img.height;y=y+sampleInterval)
+			{
+				let previousPixel = getPixel(imgData,img.width-1,y);
+				let found = false;
+				for(let x=img.width-2;x>=0&&!found;x--)
+				{
+					let currentPixel = getPixel(imgData,x,y);
+					let diff = previousPixel.toGray()-currentPixel.toGray();
+					if ((diff<-threshold)||(diff>threshold))
+					{
+						points.push(new Point(x,y));
+						found = true;
+					}
+					previousPixel = currentPixel;
+				}
+			}
+			let rightLine = findBestFitLine(points);
+			
+			points.length = 0;//clear array
+			//detect the top line
+			for(let x=0;x<img.width;x=x+sampleInterval)
+			{
+				let previousPixel = getPixel(imgData,x,0);
+				let found = false;
+				for(let y=1;y<img.height&&!found;y++)
+				{
+					let currentPixel = getPixel(imgData,x,y);
+					let diff = previousPixel.toGray()-currentPixel.toGray();
+					if ((diff<-threshold)||(diff>threshold))
+					{
+						points.push(new Point(x,y));
+						found = true;
+					}
+					previousPixel = currentPixel;
+				}
+			}
+			let topLine = findBestFitLine(points);
+			
+			points.length = 0;//clear array
+			//detect the bottom line
+			for(let x=0;x<img.width;x=x+sampleInterval)
+			{
+				let previousPixel = getPixel(imgData,x,img.height-1);
+				let found = false;
+				for(let y=img.height-2;y>=0&&!found;y--)
+				{
+					let currentPixel = getPixel(imgData,x,y);
+					let diff = previousPixel.toGray()-currentPixel.toGray();
+					if ((diff<-threshold)||(diff>threshold))
+					{
+						points.push(new Point(x,y));
+						found = true;
+					}
+					previousPixel = currentPixel;
+				}
+			}
+			let bottomLine = findBestFitLine(points);
+			
+			let fit = function(point)
+			{
+				let newPoint = new Point(0,0);
+				newPoint.x = Math.max(0,point.x);
+				newPoint.x = Math.min(img.width,point.x);
+				newPoint.y = Math.max(0,point.y);
+				newPoint.y = Math.min(img.height,point.y);
+				newPoint.x = newPoint.x*displayImgWidth/img.width+borderWidth;
+				newPoint.y = newPoint.y*displayImgWidth/img.width+borderWidth;
+				return newPoint;
+			}
+			
+			//calculate tl
+			let tl = fit(topLine.intersect(leftLine));
+			console.log("TL=("+tl.x+","+tl.y);
+			
+			//calculate tr
+			let tr = fit(topLine.intersect(rightLine));
+			console.log("TR=("+tr.x+","+tr.y);
+			
+			//calculate bl
+			let bl = fit(bottomLine.intersect(leftLine));
+			console.log("BL=("+bl.x+","+bl.y);
+			
+			//calculate br
+			let br = fit(bottomLine.intersect(rightLine));
+			console.log("BR=("+br.x+","+br.y);
+			
+			corners[0] = tl;
+			corners[1] = tr;
+			corners[2] = bl;
+			corners[3] = br;
+			redraw(true);
+		}
+		
+	</script>
+</head>
+
+<body>
+	<p><input type="file" id="fileInput" onchange="inputFileChanged()" capture="environment" accept="image/*">
+	<p>Sample Interval:
+	<output>10</output><br/>
+	<input type="range" min="1" max="100" value="10" class="slider" id="sampleInterval" oninput="this.previousElementSibling.previousElementSibling.value = this.value"><br/>
+	The sample interval define the distance between each pixel to detect border. The smaller the value, the more accurate the detection, at the expense of speed.
+	
+	<p>Threshold:
+	<output>20</output><br/>
+	<input type="range" min="1" max="255" value="20" class="slider" id="threshold" oninput="this.previousElementSibling.previousElementSibling.value = this.value"><br/>
+	The threshold define the difference between pixel in gray scale image to indicate that it is the border of the paper.
+	
+	<p><button type="button" id="detectButton" onclick="detect()" disabled>Detect</button>
+	<!--A canvas to store the original image-->
+	<p><canvas hidden id="hiddenCanvas" width="200" height="100"/>
+	
+	<p><canvas id="inputCanvas" width="200" height="100" style="border:1px solid #000000;touch-action:pinch-zoom;"/>
+	<p><button type="button" id="extractButton" onclick="extract()" disabled>extract</button>
+	<p><canvas id="outputCanvas" width="200" height="100" style="border:1px solid #000000;"/>
+	<p><button type="button" id="saveButton" onclick="save()" disabled>save</button>
+</body>
+</html>    
